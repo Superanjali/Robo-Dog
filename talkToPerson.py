@@ -6,6 +6,7 @@ Created on Wed Oct  2 19:20:55 2019
 """
 
 from playsound import playsound
+# INSTALL: pip install playsound
 import time
 
 '''
@@ -20,7 +21,7 @@ else:
     print('direction not found')
 '''
 def soundplay(d,deg):    
-    if not d:
+    if d == 0:
         for i in range(deg):
             playsound('beep-01a.wav')
     elif d == 1:

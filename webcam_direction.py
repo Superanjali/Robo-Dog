@@ -1,16 +1,20 @@
 import cv2
 import numpy as np
 # from msvcrt import getch
-import serial
+# import serial
 from time import sleep
-import math
-from timeit import default_timer as timer
-import sys
+# import math
+# from timeit import default_timer as timer
+# import sys
 
 # own files
 # from ai_lib.line_partition import detect_3_partition
 
-# Params ####################################################################3
+from playsound import playsound
+# INSTALL: pip install playsound
+
+# Params ####################################################################
+
 morph_kernel = np.ones((7,7),np.uint8)
 GREEN_COLOR = (0, 255, 128)
 BLUE_COLOR = (255, 0, 0)
@@ -35,6 +39,17 @@ class RedHue():
 
 red_hue_params = RedHue()
 
+# tennis ball green
+class GreenHue():
+    def __init__(self):
+        self.hue_across_180 = False
+        self.ll = np.array([35, 0, 0], dtype = "uint8")
+        self.lh = np.array([65, 255, 190], dtype = "uint8")
+        self.ul = self.ll
+        self.uh = self.lh
+
+green_hue_params = GreenHue()
+
 #Encapsulate the robot webcam IO:
 class CameraIO ():
     def __init__(self, port = 0):
@@ -53,7 +68,7 @@ def cv2_simple_putText(img, text, xpos, ypos):
 # Detect max contour corresponding to a given color:
 # Returns contour_Detected, img  (with contour details drawn)
 def detect_hue_max_contour(hsv_img_,hue_params,transform_argument):
-    print('detect_hue_max_contour')
+    #print('detect_hue_max_contour')
     # perform red color detection        
     lower_hue_range = cv2.inRange(hsv_img_, hue_params.ll, hue_params.lh)
     if hue_params.hue_across_180:
@@ -76,7 +91,7 @@ def detect_hue_max_contour(hsv_img_,hue_params,transform_argument):
 
 # returns the detected contour's center and coordinates: Draws info on the passed image
 def get_contour_info(img_, contour, annotate_img, annotate_min_surface):
-    print('get_contour_info')
+    #print('get_contour_info')
     # mark the object center and the coordinates
     Mclose = cv2.moments(contour)
     surface = int(Mclose["m00"])
@@ -95,7 +110,7 @@ def get_contour_info(img_, contour, annotate_img, annotate_min_surface):
 
 # Return surface and cam coordinates of the detected hue:
 def get_hue_center(img_,hue_params_, annotate_img, annotate_min_surface, transform_argument_='open'):
-    print('get_hue_center')
+    #print('get_hue_center')
     if transform_argument_ == 'open':
         transform_argument_ = cv2.MORPH_OPEN
     else:
@@ -113,10 +128,48 @@ def get_hue_center(img_,hue_params_, annotate_img, annotate_min_surface, transfo
     else:
         return 0,0,0  # 0 surface means no object detected
 
+def get_direction(surface, x_cam, y_cam):
+    zone = int(x_cam * (nb_deg * 2 + 2) / 640)
+    if surface > max_surf:
+        direct = 2
+        deg = 0
+    elif surface < min_surf:
+        direct = 3
+        deg = 0
+    elif zone < nb_deg:
+       direct = 0
+       deg = nb_deg -zone
+    else:
+        direct = 1
+        deg = zone - nb_deg - 1      
+    return direct, deg
+
+def soundplay(d,deg):    
+    if d == 0:
+        # left
+        for i in range(deg):
+            playsound('beep-01a.wav')
+    elif d == 1:
+        # right
+        for i in range(deg):
+            playsound('beep-02.wav')
+    elif d == 2:
+        # stop
+        playsound('button-30.wav')
+    else:
+        # d == 3
+        # straight ahead
+        pass
+
 # Main ####################################################################
 
 mirror = False
-cameraIO_ = CameraIO()
+play_sound = True
+cameraIO_ = CameraIO(1)
+
+min_surf = 3000
+max_surf = 20000
+nb_deg = 1 
 
 while True:
     ret_val, img_ = cameraIO_.read()
@@ -126,7 +179,12 @@ while True:
         img_ = cv2.flip(img_, 1)
     surface, x_cam, y_cam = \
         get_hue_center(img_, red_hue_params, True, ANNOTATE_MIN_SURFACE, 'open')
-
+    
+    d,deg = get_direction(surface, x_cam, y_cam)
+    print(d, deg)
+    if play_sound:
+        soundplay(d,deg)
+    sleep(0.3)
     
     # cv2.imshow('Hue match',detected_hue)
     cv2.imshow('Detection',img_)
